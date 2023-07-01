@@ -2,9 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.UIElements;
 
-public class CelestialBody : GameObject
+public class CelestialBody : MonoBehaviour
 {
 
     public enum BodyShape
@@ -22,6 +23,17 @@ public class CelestialBody : GameObject
     }
 
     public static List<CelestialBody> allBodies = new List<CelestialBody>();
+    public ObjectInfoUI objectInfo;
+
+    private static CelestialBody selectedBody = null;
+
+    [SerializeField]
+    private string _name;
+    public string Name
+    {
+        get { return _name; }
+        set { _name = value; }
+    }
 
     [SerializeField]
     private string _bodyType;
@@ -95,10 +107,63 @@ public class CelestialBody : GameObject
         }
     }
 
+    public Vector3 Position
+    {
+        get { return transform.position; }
+        set { transform.position = value; }
+    }
+
+    [SerializeField]
+    private Vector3 _velocity;
+    public Vector3 Velocity
+    {
+        get { return _velocity; }
+        set { _velocity = value; }
+    }
+
+    [SerializeField]
+    private Vector3 _acceleration;
+    public Vector3 Acceleration
+    {
+        get { return _acceleration; }
+        set { _acceleration = value; }
+    }
+
+    [SerializeField]
+    private Vector3 _force;
+    public Vector3 Force
+    {
+        get { return _force; }
+        set { _force = value; }
+    }
+
+    [SerializeField]
+    private float _mass;
+    public float Mass
+    {
+        get { return _mass; }
+        set { _mass = value; }
+    }
+
+    // Gravity constant 
+    protected const float G = 0.01f;
+
+
+    public Vector3 CalculateGravitationalForce(CelestialBody other)
+    {
+        Vector3 direction = other.Position - this.Position;
+        float distance = direction.magnitude;
+        float forceMagnitude = G * (this.Mass * other.Mass) / Mathf.Pow(distance, 2);
+
+        Vector3 force = direction.normalized * forceMagnitude;
+
+        return force;
+    }
+
 
     public CelestialBody(string bodyType, BodyShape shape, BodyComposition composition, bool hasAtmosphere,
                          bool hasMagneticField, Vector3 rotationAxis, float rotationSpeed, Vector3 velocity, Vector3 acceleration, float mass)
-       
+
     {
         this.BodyType = bodyType;
         this.Shape = shape;
@@ -110,25 +175,16 @@ public class CelestialBody : GameObject
         this.Radius = transform.localScale.x / 2.0f;
     }
 
-    private void Awake()
-    {
-        allBodies.Add(this);
-
-        this.Mass = 1;
-        
-    }
-
-    private void OnDestroy()
-    {
-        allBodies.Remove(this);
-    }
-
-
     void FixedUpdate()
     {
         if (SimulationManager.isSimulationRunning)
         {
             PhysicsUpdate();
+
+            if(selectedBody == this)
+            {
+                objectInfo.UpdateInfo(this);
+            }
         }
         else if (SimulationManager.isSimulationReset)
         {
@@ -149,7 +205,48 @@ public class CelestialBody : GameObject
         }
     }
 
-    public override void PhysicsUpdate()
+    private void Awake()
+    {
+        allBodies.Add(this);
+    }
+
+    private void OnDestroy()
+    {
+        allBodies.Remove(this);
+    }
+
+    private void OnMouseOver()
+    {
+        if (selectedBody == null)
+        {
+            objectInfo.UpdateInfo(this);
+        }
+    }
+
+    private void OnMouseExit()
+    {
+        if (selectedBody == null)
+        {
+            objectInfo.HideInfo();
+        }
+    }
+
+    private void OnMouseDown()
+    {
+        if (selectedBody == this)
+        {
+            selectedBody = null;
+            objectInfo.HideInfo();
+        }
+        else
+        {
+            selectedBody = this;
+            objectInfo.UpdateInfo(this);
+        }
+    }
+
+
+    public void PhysicsUpdate()
     {
         // Calculate total gravitational force exerted by all other bodies
         Vector3 force = Vector3.zero;
